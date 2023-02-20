@@ -3,6 +3,70 @@ import math
 
 
 @torch.jit.script
+def I_phi_phi(t, alpha, thet1, thet2, beta1, beta2):
+    pi = math.pi
+    coeff = 0.5 * torch.sqrt(pi / alpha)
+    ea1 = torch.exp(-((thet1 + thet2) ** 2) / (4.0 * alpha))
+    ea2 = torch.cos(beta1 - beta2 - t * thet2) + torch.exp(
+        thet1 * thet2 / alpha
+    ) * torch.cos(beta1 + beta2 + t * thet2)
+    return coeff * ea1 * ea2
+
+
+@torch.jit.script
+def I_k_phi(t, alpha, p1, z1, thet2, beta2):
+    pi = math.pi
+    coeff = torch.sqrt(pi / (alpha + p1))
+    ea1 = torch.exp(-(4 * alpha * p1 * z1**2 + thet2**2) / (4 * (alpha + p1)))
+    ea2 = torch.cos(beta2 + thet2 * (t - (p1 * z1) / (alpha + p1)))
+    return coeff * ea1 * ea2
+
+
+@torch.jit.script
+def I_phi_k(t, alpha, thet1, beta1, p2, z2):
+    pi = math.pi
+    coeff = torch.sqrt(pi / (alpha + p2))
+    ea = -(4 * alpha * p2 * (t - z2) ** 2 + thet1**2) / (4 * (alpha + p2))
+    ca = (alpha * beta1 + p2 * (beta1 + thet1 * (t - z2))) / (alpha + p2)
+    return coeff * torch.exp(ea) * torch.cos(ca)
+
+
+@torch.jit.script
+def I_k_k(t, alpha, p1, z1, p2, z2):
+    pi = math.pi
+    coeff = torch.sqrt(pi / (alpha + p1 + p2))
+    ea1 = alpha * (p1 * z1**2 + p2 * (t - z2) ** 2)
+    ea2 = p1 * p2 * (z1 + z2 - t) ** 2
+    return coeff * torch.exp(-(ea1 + ea2) / (alpha + p1 + p2))
+
+
+@torch.jit.script
+def I_phi_imag(t, alpha, thet1, beta1, thet2):
+    """
+    Computes integal of random part of G with e^{j thet2 t}.
+    """
+    pi = math.pi
+    const = 0.5 * torch.sqrt(pi / alpha)
+    t1 = torch.exp(
+        torch.complex(-((thet1 + thet2) ** 2) / (4 * alpha), t * thet2 - beta1)
+    )
+    t2 = 1 + torch.exp(torch.complex(thet1 * thet2 / alpha, 2 * beta1))
+    return const * t1 * t2
+
+
+@torch.jit.script
+def I_k_imag(t, alpha, p1, z1, thet2):
+    """
+    Computes integal of canonical basis part of G with e^{j thet2 t}.
+    """
+    pi = math.pi
+    const = torch.sqrt(pi / (p1 + alpha))
+    t1 = thet2 * torch.complex(thet2, -4 * p1 * (t - z1))
+    t2 = 4 * alpha * torch.complex(p1 * z1**2, -t * thet2)
+    return const * torch.exp(-(t1 + t2) / (4 * (alpha + p1)))
+
+
+@torch.jit.script
 def full_I(
     ts,  # Nt x D or B x Nt x D
     alphas,  # D
@@ -121,67 +185,3 @@ def I_interdom(ts, pgs, thets, betas):  # Nt x D  # D  # B x Q x D x Nb  # B x Q
     )
     It = torch.real((ef * It + torch.conj(ef) * torch.conj(It))) / 2
     return It
-
-
-@torch.jit.script
-def I_phi_phi(t, alpha, thet1, thet2, beta1, beta2):
-    pi = math.pi
-    coeff = 0.5 * torch.sqrt(pi / alpha)
-    ea1 = torch.exp(-((thet1 + thet2) ** 2) / (4.0 * alpha))
-    ea2 = torch.cos(beta1 - beta2 - t * thet2) + torch.exp(
-        thet1 * thet2 / alpha
-    ) * torch.cos(beta1 + beta2 + t * thet2)
-    return coeff * ea1 * ea2
-
-
-@torch.jit.script
-def I_k_phi(t, alpha, p1, z1, thet2, beta2):
-    pi = math.pi
-    coeff = torch.sqrt(pi / (alpha + p1))
-    ea1 = torch.exp(-(4 * alpha * p1 * z1**2 + thet2**2) / (4 * (alpha + p1)))
-    ea2 = torch.cos(beta2 + thet2 * (t - (p1 * z1) / (alpha + p1)))
-    return coeff * ea1 * ea2
-
-
-@torch.jit.script
-def I_phi_k(t, alpha, thet1, beta1, p2, z2):
-    pi = math.pi
-    coeff = torch.sqrt(pi / (alpha + p2))
-    ea = -(4 * alpha * p2 * (t - z2) ** 2 + thet1**2) / (4 * (alpha + p2))
-    ca = (alpha * beta1 + p2 * (beta1 + thet1 * (t - z2))) / (alpha + p2)
-    return coeff * torch.exp(ea) * torch.cos(ca)
-
-
-@torch.jit.script
-def I_k_k(t, alpha, p1, z1, p2, z2):
-    pi = math.pi
-    coeff = torch.sqrt(pi / (alpha + p1 + p2))
-    ea1 = alpha * (p1 * z1**2 + p2 * (t - z2) ** 2)
-    ea2 = p1 * p2 * (z1 + z2 - t) ** 2
-    return coeff * torch.exp(-(ea1 + ea2) / (alpha + p1 + p2))
-
-
-@torch.jit.script
-def I_phi_imag(t, alpha, thet1, beta1, thet2):
-    """
-    Computes integal of random part of G with e^{j thet2 t}.
-    """
-    pi = math.pi
-    const = 0.5 * torch.sqrt(pi / alpha)
-    t1 = torch.exp(
-        torch.complex(-((thet1 + thet2) ** 2) / (4 * alpha), t * thet2 - beta1)
-    )
-    t2 = 1 + torch.exp(torch.complex(thet1 * thet2 / alpha, 2 * beta1))
-    return const * t1 * t2
-
-
-@torch.jit.script
-def I_k_imag(t, alpha, p1, z1, thet2):
-    """
-    Computes integal of canonical basis part of G with e^{j thet2 t}.
-    """
-    pi = math.pi
-    const = torch.sqrt(pi / (p1 + alpha))
-    t1 = thet2 * torch.complex(thet2, -4 * p1 * (t - z1))
-    t2 = 4 * alpha * torch.complex(p1 * z1**2, -t * thet2)
-    return const * torch.exp(-(t1 + t2) / (4 * (alpha + p1)))
