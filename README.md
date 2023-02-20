@@ -2,9 +2,7 @@
 
 
 
-Implementation of the GP with nonparametric covariances via multidimensional convolutions.
-
-This repo is an implementation of the NP-CGP model from
+Implementation of the GP with nonparametric covariances via multidimensional convolutions (NP-CGP), to appear in AISTATS 2023.
 
 ```
 [CITATION HERE]
